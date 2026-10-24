@@ -35,6 +35,13 @@ button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 2px
 .menu { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
 .item { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px 16px; align-items: center; padding: 16px 18px; border-bottom: 1px solid var(--line); }
 .item:last-child { border-bottom: 0; }
+.item.has-img { grid-template-columns: 96px minmax(0, 1fr) auto; }
+.item .pic { width: 96px; height: 96px; object-fit: cover; border-radius: 10px; background: var(--leaf-soft); display: block; }
+@media (max-width: 520px) {
+  .item.has-img { grid-template-columns: 72px minmax(0, 1fr); }
+  .item .pic { width: 72px; height: 72px; }
+  .item.has-img .step { grid-column: 1 / -1; justify-self: end; }
+}
 .item h2 { font-family: var(--font-display); font-size: 18px; margin: 0; font-weight: 600; }
 .item p { margin: 2px 0 0; color: var(--muted); font-size: 13.5px; }
 .price { font-variant-numeric: tabular-nums; font-weight: 600; color: var(--shrimp); margin-top: 4px; font-size: 14px; }
@@ -65,13 +72,21 @@ textarea { resize: vertical; min-height: 64px; }
 pre.copy { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; font: 13px/1.5 var(--font-body); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; }
 .hp { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
 @media (prefers-reduced-motion: no-preference) { .btn, .step button { transition: background 0.15s, border-color 0.15s; } }
+body { overflow-x: clip; }
+.hero-video { width: 100%; height: clamp(180px, 34vw, 380px); border-radius: 14px; overflow: hidden; border: 1px solid var(--line); background: var(--leaf-soft); }
+.hero-video video { width: 100%; height: 100%; object-fit: cover; display: block; }
 </style>
 </head>
 <body>
 <div class="wrap">
   <header>
     <h1>Tiệm Bánh Bột Lọc</h1>
-    <p class="sub">Bánh làm trong ngày, hấp nóng. Chọn số phần, điền thông tin và gửi đơn.</p>
+    <p class="sub">Bánh bột lọc của tiệm được làm theo công thức Huế chính gốc, bột dai trong, nhân tôm thịt đậm đà, hấp nóng mỗi ngày bởi chính người Huế.</p>
+    <div class="hero-video">
+  <video autoplay muted loop playsinline preload="auto" poster="images/tran.jpg">
+    <source src="video/banh.mp4" type="video/mp4">
+  </video>
+</div>
   </header>
   <main class="cols">
     <section class="menu" id="menu" aria-label="Thực đơn"></section>
@@ -101,12 +116,13 @@ pre.copy { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; font: 13px
 
 /* Dán địa chỉ Web app của Google Apps Script vào đây (xem HUONG-DAN.md).
    Để trống thì trang chỉ tạo nội dung đơn để khách sao chép gửi qua Zalo. */
-const ORDER_URL = "https://script.google.com/macros/s/AKfycby6gcytxqCDHelgocZVA-32aa5RH-Ucb4DS2K_-Xf3yvmzH6_QpbSMAg_FecSo9MawoBg/exec";
+const ORDER_URL = "";
 
-/* Thực đơn. Tên món và giá phải giống hệt MENU trong Code.gs. Giá tính bằng đồng. */
+/* Thực đơn. Tên món và giá phải giống hệt MENU trong Code.gs. Giá tính bằng đồng.
+   img là đường dẫn ảnh món (để trong thư mục images/). Món nào chưa có ảnh thì xóa dòng img hoặc để "". */
 const MENU = [
-  { id: "goi",  name: "Bánh bột lọc gói lá", desc: "Hấp trong lá chuối, thơm mùi lá, nhân tôm thịt",    unit: "phần 10 cái", price: 25000 },
-  { id: "nuoc", name: "Nước mắm ớt thêm",    desc: "Chén nước mắm ớt tỏi pha riêng",                    unit: "chén",        price: Free }
+  { id: "goi",  name: "Bánh bột lọc gói lá", desc: "Hấp trong lá chuối, thơm mùi lá, nhân tôm thịt",    unit: "phần 10 cái", price: 25000, img: "/img/banh.webp" },
+  { id: "nuoc", name: "Nước mắm ớt thêm",    desc: "Chén nước mắm ớt tỏi pha riêng",                    unit: "chén",        price: 2000,  img: "/img/nuocmam.jpg" }
 ];
 
 /* ===== HẾT PHẦN CẦN SỬA ===== */
@@ -132,7 +148,9 @@ function setQty(id, n) {
   renderSummary();
 }
 function renderMenu() {
-  $("menu").replaceChildren(...MENU.map(m => h("div", { class: "item" },
+  $("menu").replaceChildren(...MENU.map(m => h("div", { class: "item" + (m.img ? " has-img" : "") },
+    m.img ? h("img", { class: "pic", src: m.img, alt: m.name, loading: "lazy", width: "96", height: "96",
+      onerror: e => { const row = e.target.closest(".item"); e.target.remove(); row.classList.remove("has-img"); } }) : "",
     h("div", {}, h("h2", {}, m.name), h("p", {}, m.desc), h("div", { class: "price" }, money(m.price) + " / " + m.unit)),
     h("div", { class: "step" },
       h("button", { type: "button", "aria-label": "Bớt " + m.name, onclick: () => setQty(m.id, qty[m.id] - 1) }, "−"),
